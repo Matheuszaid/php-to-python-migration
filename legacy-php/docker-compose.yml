@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  php-legacy:
+    image: php:7.4-apache
+    container_name: billing-legacy-php
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - mysql-legacy
+    environment:
+      - PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:/var/www/html
+    command: >
+      bash -c "
+      docker-php-ext-install mysqli pdo pdo_mysql &&
+      apache2-foreground
+      "
+
+  mysql-legacy:
+    image: mysql:5.7
+    container_name: billing-legacy-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: billing_legacy
+      MYSQL_USER: billing_user
+      MYSQL_PASSWORD: billing_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_legacy_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: billing-legacy-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql-legacy
+      PMA_USER: billing_user
+      PMA_PASSWORD: billing_pass
+    depends_on:
+      - mysql-legacy
+
+volumes:
+  mysql_legacy_data:

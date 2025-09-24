@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  python-modern:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: billing-modern-python
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres-modern
+      - redis-modern
+    environment:
+      - APP_ENV=prod
+      - DATABASE_URL=postgresql+asyncpg://billing_user:billing_pass@postgres-modern:5432/billing_modern
+      - REDIS_URL=redis://redis-modern:6379/0
+      - DEBUG=false
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres-modern:
+    image: postgres:15-alpine
+    container_name: billing-modern-postgres
+    environment:
+      POSTGRES_DB: billing_modern
+      POSTGRES_USER: billing_user
+      POSTGRES_PASSWORD: billing_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_modern_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+
+  redis-modern:
+    image: redis:7-alpine
+    container_name: billing-modern-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_modern_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: billing-modern-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@billing.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8082:80"
+    depends_on:
+      - postgres-modern
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  postgres_modern_data:
+  redis_modern_data:
+  pgadmin_data:
